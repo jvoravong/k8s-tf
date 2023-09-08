@@ -1,0 +1,76 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: helm-chart-upgrade
+spec:
+  schedule: "*/10 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: helm-service-account
+          initContainers:
+            - name: script-permission-fix
+              image: busybox
+              command: [ 'sh', '-c', 'chmod +x /script/upgrade.sh' ]
+              volumeMounts:
+                - name: script-volume
+                  mountPath: /script
+          containers:
+            - name: helm-client
+              image: alpine/helm:latest
+              command: ["/bin/sh"]
+              args: ["-c", "/script/upgrade.sh"]
+              volumeMounts:
+                - name: script-volume
+                  mountPath: /script
+              env:
+                - name: REPO
+                  value: "https://signalfx.github.io/splunk-otel-collector-chart"
+                - name: CHART
+                  value: "splunk-otel-collector-chart"
+          volumes:
+            - name: script-volume
+              configMap:
+                name: script-config
+                defaultMode: 0777
+          restartPolicy: OnFailure
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: script-config
+data:
+  upgrade.sh: |-
+    #!/bin/sh
+    helm repo add splunk-otel-collector-chart https://signalfx.github.io/splunk-otel-collector-chart
+    helm upgrade --install my-release \
+    --set splunkObservability.metricsEnabled=true \
+    --set splunkObservability.tracesEnabled=true \
+    --set splunkObservability.logsEnabled=true \
+    --set splunkObservability.accessToken=XXX \
+    --set splunkObservability.realm=us0 \
+    --set clusterName=aws \
+    --set logsEngine=otel \
+    --namespace default \
+    --create-namespace \
+    splunk-otel-collector-chart/splunk-otel-collector
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: helm-service-account
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: helm-service-account-cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: helm-service-account
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io

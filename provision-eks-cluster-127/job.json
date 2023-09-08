@@ -1,0 +1,79 @@
+{
+  "kind": "job",
+  "apiVersion": "v1",
+  "metadata": {
+    "creationTimestamp": null
+  },
+  "metadata": {
+    "creationTimestamp": null
+  },
+  "spec": {
+    "template": {
+      "metadata": {
+        "creationTimestamp": null
+      },
+      "spec": {
+        "containers": [
+          {
+            "args": [
+              "-c",
+              "/script/upgrade.sh"
+            ],
+            "command": [
+              "/bin/sh"
+            ],
+            "env": [
+              {
+                "name": "REPO",
+                "value": "https://signalfx.github.io/splunk-otel-collector-chart"
+              },
+              {
+                "name": "CHART",
+                "value": "splunk-otel-collector-chart"
+              }
+            ],
+            "image": "alpine/helm:latest",
+            "imagePullPolicy": "Always",
+            "name": "helm-client",
+            "resources": {},
+            "terminationMessagePath": "/dev/termination-log",
+            "terminationMessagePolicy": "File",
+            "volumeMounts": [
+              {
+                "mountPath": "/script",
+                "name": "script-volume"
+              },
+              {
+                "mountPath": "/root/.kube",
+                "name": "config-volume"
+              }
+            ]
+          }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "restartPolicy": "OnFailure",
+        "schedulerName": "default-scheduler",
+        "securityContext": {},
+        "serviceAccount": "helm-service-account",
+        "serviceAccountName": "helm-service-account",
+        "terminationGracePeriodSeconds": 30,
+        "volumes": [
+          {
+            "configMap": {
+              "defaultMode": 420,
+              "name": "script-config"
+            },
+            "name": "script-volume"
+          },
+          {
+            "name": "config-volume",
+            "secret": {
+              "defaultMode": 420,
+              "secretName": "kube-config-secret"
+            }
+          }
+        ]
+      }
+    }
+  }
+}
